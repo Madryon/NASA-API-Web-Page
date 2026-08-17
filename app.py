@@ -221,10 +221,11 @@ def get_asteroid_stats():
 # ================================================================
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
     print("🚀 NASA Space Data Explorer API starting...")
     print("📡 Endpoints:")
     print("   GET /api/health")
     print("   GET /api/apod")
     print("   GET /api/asteroids")
     print("   GET /api/asteroids/stats")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)
