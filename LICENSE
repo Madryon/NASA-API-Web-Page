@@ -1,0 +1,5 @@
+# Download MIT license
+curl -o LICENSE https://www.opensource.org/licenses/MIT
+git add LICENSE
+git commit -m "Add MIT license"
+git push
