@@ -1,21 +1,36 @@
 """
 NASA Space Data Explorer - Flask Backend API
-Updated with REST endpoints, CORS, and structured responses
+Updated with REST endpoints, CORS, static file serving, and Render support
 """
 
 import os
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
+
+# CORS - allow all origins for Render deployment
+from flask_cors import CORS
 CORS(app)
 
 # Configuration
 API_KEY = os.environ.get("NASA_API_KEY", "DEMO_KEY")
 BASE_URL = "https://api.nasa.gov"
+
+
+# ================================================================
+# STATIC FILES (Serve frontend)
+# ================================================================
+
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory('.', path)
 
 
 # ================================================================
