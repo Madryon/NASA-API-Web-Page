@@ -1,6 +1,5 @@
 """
 NASA Space Data Explorer - Flask Backend API
-Updated with REST endpoints, CORS, static file serving, and Render support
 """
 
 import os
@@ -8,11 +7,9 @@ import mimetypes
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, Response
 
 app = Flask(__name__)
-
-# CORS
 from flask_cors import CORS
 CORS(app)
 
@@ -20,53 +17,65 @@ CORS(app)
 API_KEY = os.environ.get("NASA_API_KEY", "DEMO_KEY")
 BASE_URL = "https://api.nasa.gov"
 
-# Get the directory where app.py lives
+# Absolute path to project folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# ================================================================
+# DEBUG: List files on startup
+# ================================================================
+print("=" * 50)
+print(f"BASE_DIR: {BASE_DIR}")
+print(f"Files in directory: {os.listdir(BASE_DIR)}")
+print("=" * 50)
+
 
 # ================================================================
-# STATIC FILES (Serve frontend with correct MIME types)
+# STATIC FILES (Explicit - no catch-all conflicts)
 # ================================================================
+
+def serve_file(filename, mime_type):
+    """Read and serve a file with correct MIME type."""
+    file_path = os.path.join(BASE_DIR, filename)
+    print(f"Serving: {file_path} (exists: {os.path.exists(file_path)})")
+    
+    if not os.path.exists(file_path):
+        return f"File not found: {filename}. Available: {os.listdir(BASE_DIR)}", 404
+    
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    return Response(content, mimetype=mime_type)
+
 
 @app.route('/')
 def index():
-    return send_from_directory(BASE_DIR, 'index.html', mimetype='text/html')
+    return serve_file('index.html', 'text/html')
 
 @app.route('/style.css')
 def serve_css():
-    return send_from_directory(BASE_DIR, 'style.css', mimetype='text/css')
+    return serve_file('style.css', 'text/css')
 
 @app.route('/app.js')
 def serve_js():
-    return send_from_directory(BASE_DIR, 'app.js', mimetype='application/javascript')
+    return serve_file('app.js', 'application/javascript')
 
-@app.route('/<path:filename>')
-def static_files(filename):
-    mime_type, _ = mimetypes.guess_type(filename)
-    if mime_type is None:
-        mime_type = 'application/octet-stream'
-    return send_from_directory(BASE_DIR, filename, mimetype=mime_type)
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 
 # ================================================================
 # API ROUTES
 # ================================================================
 
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({"error": "Endpoint not found"}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({"error": "Internal server error"}), 500
-
-
 @app.route("/api/health", methods=["GET"])
 def health_check():
+    files = os.listdir(BASE_DIR)
     return jsonify({
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "service": "NASA Space Data Explorer API"
+        "files_in_directory": files,
+        "base_dir": BASE_DIR,
+        "timestamp": datetime.utcnow().isoformat()
     })
 
 
@@ -227,12 +236,4 @@ def get_asteroid_stats():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("🚀 NASA Space Data Explorer API starting...")
-    print("📡 Endpoints:")
-    print("   GET /")
-    print("   GET /style.css")
-    print("   GET /app.js")
-    print("   GET /api/health")
-    print("   GET /api/apod")
-    print("   GET /api/asteroids")
-    print("   GET /api/asteroids/stats")
     app.run(host="0.0.0.0", port=port, debug=False)
