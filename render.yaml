@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nasa-space-data-explorer
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: NASA_API_KEY
+        sync: false
