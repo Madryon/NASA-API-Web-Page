@@ -4,14 +4,15 @@ Updated with REST endpoints, CORS, static file serving, and Render support
 """
 
 import os
+import mimetypes
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 
 app = Flask(__name__)
 
-# CORS - allow all origins for Render deployment
+# CORS
 from flask_cors import CORS
 CORS(app)
 
@@ -19,22 +20,37 @@ CORS(app)
 API_KEY = os.environ.get("NASA_API_KEY", "DEMO_KEY")
 BASE_URL = "https://api.nasa.gov"
 
+# Get the directory where app.py lives
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 # ================================================================
-# STATIC FILES (Serve frontend)
+# STATIC FILES (Serve frontend with correct MIME types)
 # ================================================================
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory(BASE_DIR, 'index.html', mimetype='text/html')
 
-@app.route('/<path:path>')
-def static_files(path):
-    return send_from_directory('.', path)
+@app.route('/style.css')
+def serve_css():
+    return send_from_directory(BASE_DIR, 'style.css', mimetype='text/css')
+
+@app.route('/app.js')
+def serve_js():
+    return send_from_directory(BASE_DIR, 'app.js', mimetype='application/javascript')
+
+@app.route('/<path:filename>')
+def static_files(filename):
+    # Guess the correct MIME type
+    mime_type, _ = mimetypes.guess_type(filename)
+    if mime_type is None:
+        mime_type = 'application/octet-stream'
+    return send_from_directory(BASE_DIR, filename, mimetype=mime_type)
 
 
 # ================================================================
-# ERROR HANDLERS
+# API ROUTES
 # ================================================================
 
 @app.errorhandler(404)
@@ -46,10 +62,6 @@ def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
 
-# ================================================================
-# HEALTH CHECK
-# ================================================================
-
 @app.route("/api/health", methods=["GET"])
 def health_check():
     return jsonify({
@@ -59,15 +71,9 @@ def health_check():
     })
 
 
-# ================================================================
-# 1. ASTRONOMY PICTURE OF THE DAY
-# ================================================================
-
 @app.route("/api/apod", methods=["GET"])
 def get_apod():
-    """Fetch Astronomy Picture of the Day from NASA API."""
     date = request.args.get("date", None)
-    
     url = f"{BASE_URL}/planetary/apod"
     params = {"api_key": API_KEY}
     if date:
@@ -90,7 +96,6 @@ def get_apod():
                 "copyright": data.get("copyright", "NASA")
             }
         })
-    
     except requests.exceptions.Timeout:
         return jsonify({"success": False, "error": "NASA server timeout"}), 504
     except requests.exceptions.ConnectionError:
@@ -101,13 +106,8 @@ def get_apod():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ================================================================
-# 2. ASTEROID DATA
-# ================================================================
-
 @app.route("/api/asteroids", methods=["GET"])
 def get_asteroids():
-    """Fetch Near-Earth Asteroid data for a date range."""
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
     
@@ -139,15 +139,11 @@ def get_asteroids():
                 
                 approach = approach_data[0]
                 
-                # Diameter
                 diameter_km = asteroid.get("estimated_diameter", {}).get("kilometers", {})
                 min_dia = diameter_km.get("estimated_diameter_min", 0)
                 max_dia = diameter_km.get("estimated_diameter_max", 0)
                 
-                # Velocity
                 velocity = float(approach.get("relative_velocity", {}).get("kilometers_per_second", 0))
-                
-                # Distance
                 distance = float(approach.get("miss_distance", {}).get("kilometers", 0))
                 
                 asteroid_list.append({
@@ -169,7 +165,6 @@ def get_asteroids():
             "date_range": {"start": start_date, "end": end_date},
             "data": asteroid_list
         })
-    
     except requests.exceptions.Timeout:
         return jsonify({"success": False, "error": "NASA server timeout"}), 504
     except requests.exceptions.ConnectionError:
@@ -180,13 +175,8 @@ def get_asteroids():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ================================================================
-# 3. ASTEROID STATISTICS
-# ================================================================
-
 @app.route("/api/asteroids/stats", methods=["GET"])
 def get_asteroid_stats():
-    """Get computed statistics for asteroids."""
     result = get_asteroids()
     data = result.get_json()
     
@@ -232,13 +222,16 @@ def get_asteroid_stats():
 
 
 # ================================================================
-# 4. RUN SERVER
+# RUN SERVER
 # ================================================================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("🚀 NASA Space Data Explorer API starting...")
     print("📡 Endpoints:")
+    print("   GET /")
+    print("   GET /style.css")
+    print("   GET /app.js")
     print("   GET /api/health")
     print("   GET /api/apod")
     print("   GET /api/asteroids")
