@@ -8,7 +8,7 @@ import mimetypes
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request, send_from_directory, Response
+from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 
@@ -42,7 +42,6 @@ def serve_js():
 
 @app.route('/<path:filename>')
 def static_files(filename):
-    # Guess the correct MIME type
     mime_type, _ = mimetypes.guess_type(filename)
     if mime_type is None:
         mime_type = 'application/octet-stream'
